@@ -1,0 +1,11 @@
+.build/
+__pycache__/
+*.pyc
+.venv/
+player1/
+player2/
+runtime/
+logs/
+config.json
+.env*
+*.core
