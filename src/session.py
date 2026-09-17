@@ -26,7 +26,7 @@ def command(home, runtime, env):
               'PATH': f'{HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin',
               'ENABLE_GAMESCOPE_WSI': '0', 'PULSE_PROP': 'duoomarchy.session=player2', 'DXVK_MAX_COMPILER_THREADS': '2'}
     for key, value in values.items(): args += ['--setenv', key, value]
-    for key in ('DBUS_SESSION_BUS_ADDRESS', 'WAYLAND_DISPLAY', 'XAUTHORITY',
+    for key in ('PULSE_SINK', 'PULSE_SOURCE', 'DBUS_SESSION_BUS_ADDRESS', 'WAYLAND_DISPLAY', 'XAUTHORITY',
                 'HYPRLAND_INSTANCE_SIGNATURE', 'GAMESCOPE_WAYLAND_DISPLAY',
                 'LIBGL_ALWAYS_SOFTWARE', 'GALLIUM_DRIVER', 'VK_DRIVER_FILES', 'VK_ICD_FILENAMES'):
         args += ['--unsetenv', key]

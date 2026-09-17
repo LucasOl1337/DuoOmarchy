@@ -42,7 +42,7 @@ Abra **DuoOmarchy — Gerenciador** no menu do Omarchy, ou execute:
 duoomarchy manager
 ```
 
-O painel permite ligar e encerrar a segunda estação, abrir e fechar a Steam, iniciar Overwatch, abrir um Chromium com perfil próprio, selecionar a saída de áudio e ajustar volume/mudo. O controle usa um socket local dentro da sessão; não precisa automatizar seu mouse, abrir portas de rede ou solicitar `sudo` a cada botão.
+O painel permite ligar e encerrar a segunda estação, abrir e fechar a Steam, iniciar Overwatch, abrir um Chromium com perfil próprio. Saída de áudio, microfone, volume e mudo ficam no Sonora ou no mixer do sistema. O controle usa um socket local dentro da sessão; não precisa automatizar seu mouse, abrir portas de rede ou solicitar `sudo` a cada botão.
 
 O segundo jogador não recebe outro Omarchy completo. A proposta é uma estação de aplicativos e jogos administrada pelo desktop principal. A interface de configuração dos kits fica em `duoomarchy configurar`.
 
@@ -67,7 +67,7 @@ Entre na segunda conta Steam diretamente na janela secundária. A conta principa
 - Backend Wayland nativo como padrão; SDL disponível para diagnóstico.
 - Supervisão por systemd, saída de emergência e encerramento se um dispositivo capturado for removido.
 - Gerenciador local e controle de aplicativos persistente, com protocolo de comandos restrito.
-- Saída silenciosa provisória enquanto o segundo fone não estiver configurado.
+- Áudio compartilhado com o sistema, selecionado por aplicativo no Sonora, sem roteamento automático pelo DuoOmarchy.
 - Ajustes de memória e de compilação de shaders para a sessão secundária.
 
 ## Antes de instalar

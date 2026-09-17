@@ -11,7 +11,7 @@ flowchart LR
   C --> S
   P --> GPU[GPU compartilhada]
   S --> GPU
-  S --> F[Saída de áudio dedicada]
+  S --> F[Áudio do sistema / Sonora]
 ```
 
 ## Entrada
@@ -34,7 +34,7 @@ Não se inicia um segundo cliente da conta principal. A conta secundária deve s
 
 O Chromium secundário tem um diretório de perfil próprio. Não se conecta ao navegador principal, não ativa depuração e não usa flags para desabilitar a sandbox do navegador. Disponibilidade e compatibilidade do sandbox do Chromium dentro desse namespace ainda precisam de testes em mais instalações.
 
-O painel gerencia áudio por PulseAudio. A sessão marca novos streams com `duoomarchy.session=player2`, e o supervisor encaminha esses streams para a saída selecionada. O volume altera a saída escolhida; por isso ela deve ser dedicada ao segundo jogador. O painel impede selecionar a saída configurada para o jogador principal.
+A sessão compartilha o servidor de áudio do desktop e marca seus streams com `duoomarchy.session=player2`. Saída, microfone, volume e mudo são controlados pelo Sonora ou pelo mixer do sistema. O DuoOmarchy não cria saídas virtuais, não força dispositivos por variáveis de ambiente e não move streams em segundo plano. Campos antigos `sink` e `source` na configuração são ignorados.
 
 ## Apresentação e desempenho
 

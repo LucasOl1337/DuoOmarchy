@@ -25,7 +25,6 @@ def run(args,check=True,**kw):
 def config(): return json.loads(CONFIG.read_text())
 def active(): return run(['systemctl','--user','is-active',SERVICE],False).stdout.strip()=='active'
 def monitors(): return json.loads(run(['hyprctl','-j','monitors']).stdout)
-def nodes(kind): return {x['name'] for x in json.loads(run(['pactl','--format=json','list',kind]).stdout)}
 
 def devices():
     from evdev import InputDevice, ecodes as e
@@ -53,31 +52,14 @@ def held_devices(player):
         if d['usable'] and d['phys'].split('/input')[0] in roots: chosen.append(d['real'])
     return sorted(set(chosen))
 
-def prepare_audio(c):
-    # An unconfigured headset must not prevent independent input.
-    for n,p in enumerate(c['players'],1):
-        if not p['sink']:
-            sink=f'duoomarchy_pending_{n}'
-            if sink not in nodes('sinks'):
-                run(['pactl','load-module','module-null-sink','sink_name='+sink,'sink_properties=device.description=JogarDuo_Fone_Pendente'])
-            p['sink']=sink
-            p['source']=sink+'.monitor'
-        elif not p['source']:
-            p['source']=p['sink']+'.monitor'
-    return c
-
 def validate(c,display=True,profiles=True):
     ps=c['players']
     if len(ps)!=2: raise ValueError('Configure exatamente dois jogadores.')
     if ps[0]['monitor']==ps[1]['monitor']: raise ValueError('Escolha monitores diferentes.')
-    if ps[0]['sink']==ps[1]['sink']: raise ValueError('Escolha fones diferentes.')
     groups=[held_devices(p) for p in ps]
     if set(groups[0]) & set(groups[1]): raise ValueError('Os dois kits compartilham dispositivos. Escolha um kit por pessoa.')
-    ss=nodes('sinks'); sources=nodes('sources')
     ms={m['name']:m for m in monitors()} if display else {}
     for p in ps:
-        if p['sink'] not in ss: raise ValueError(f"Fone de {p['name']} desconectado.")
-        if p['source'] not in sources: raise ValueError(f"Microfone de {p['name']} desconectado.")
         if not 30<=int(p['fps'])<=240: raise ValueError('FPS deve ficar entre 30 e 240.')
         if display:
             if p['monitor'] not in ms: raise ValueError(f"Monitor {p['monitor']} desconectado.")
@@ -121,18 +103,6 @@ def restore():
         run(['systemctl','--user','set-property','--runtime','app.slice','CPUWeight='+s['app_weight']],False)
     s['phase']='off';s['stopped_at']=time.time();save_state(s)
 
-def route_audio():
-    try:
-        sink=config()['players'][1].get('sink')
-        if not sink:return
-        all_sinks=json.loads(run(['pactl','--format=json','list','sinks']).stdout)
-        target=next((s['index'] for s in all_sinks if s['name']==sink),None)
-        if target is None:return
-        for stream in json.loads(run(['pactl','--format=json','list','sink-inputs']).stdout):
-            if stream.get('properties',{}).get('duoomarchy.session')=='player2' and stream['sink']!=target:
-                run(['pactl','move-sink-input',str(stream['index']),sink],False)
-    except (OSError,ValueError,subprocess.CalledProcessError):pass
-
 def tune_background_compilers():
     # Only this service's game. Keep on-demand shader compilation at normal priority.
     own=Path('/proc/self/cgroup').read_text()
@@ -150,7 +120,7 @@ def tune_background_compilers():
 def serve():
     RUN.mkdir(mode=0o700,parents=True,exist_ok=True)
     lock=(RUN/'lock').open('w');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-    c=prepare_audio(config());groups,ms=validate(c)
+    c=config();groups,ms=validate(c)
     if (RUNTIME/'tv-gaming/active').exists():raise ValueError('Desative o modo TV antes do modo duo.')
     if (RUNTIME/'jogar/active').exists():raise ValueError('Execute jogarnao antes: o modo duo faz sua própria reserva e mantém os dois monitores.')
     weight=run(['systemctl','--user','show','app.slice','-p','CPUWeight','--value']).stdout.strip()
@@ -166,7 +136,9 @@ def serve():
         # The primary player stays in the native desktop. Never grab that kit.
         for n,p in [(2,c['players'][1])]:
             m=ms[p['monitor']];env=os.environ.copy()
-            env.update(SDL_APP_ID=f'duoomarchy.player{n}',SDL_VIDEODRIVER='x11',SDL_VIDEO_X11_WMCLASS=f'duoomarchy.player{n}',JOGARDUO_APP_ID=f'duoomarchy.player{n}',JOGARDUO_FPS=str(p['fps']),PULSE_SINK=p['sink'],PULSE_SOURCE=p['source'],DXVK_MAX_COMPILER_THREADS='2',__GL_SHADER_DISK_CACHE='1')
+            # Device selection belongs to the desktop audio mixer.
+            env.pop('PULSE_SINK',None);env.pop('PULSE_SOURCE',None)
+            env.update(SDL_APP_ID=f'duoomarchy.player{n}',SDL_VIDEODRIVER='x11',SDL_VIDEO_X11_WMCLASS=f'duoomarchy.player{n}',JOGARDUO_APP_ID=f'duoomarchy.player{n}',JOGARDUO_FPS=str(p['fps']),DXVK_MAX_COMPILER_THREADS='2',__GL_SHADER_DISK_CACHE='1')
             cmd=[str(BIN),'--backend',p.get('backend','wayland'),'-f','--backend-disable-keyboard','--backend-disable-mouse','-g','-W',str(m['width']),'-H',str(m['height']),'-w',str(m['width']),'-h',str(m['height']),'-r',str(p['fps']),'-o',str(p['fps'])]
             if p.get('gpu'):cmd+=['--prefer-vk-device',p['gpu']]
             for d in groups[n-1]:cmd+=['--libinput-hold-dev',d]
@@ -174,7 +146,7 @@ def serve():
             log=(BASE/'logs'/f'player{n}.log').open('w')
             proc=subprocess.Popen(cmd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
             log.close();procs.append(proc)
-            state['players'].append({'name':p['name'],'pid':proc.pid,'monitor':p['monitor'],'devices':groups[n-1],'sink':p['sink']});save_state(state)
+            state['players'].append({'name':p['name'],'pid':proc.pid,'monitor':p['monitor'],'devices':groups[n-1]});save_state(state)
             # Give compositor initialization time before launching another GPU client.
             for _ in range(30):
                 if stopping or proc.poll() is not None:break
@@ -183,7 +155,6 @@ def serve():
         state['phase']='running';save_state(state)
         while not stopping and all(p.poll() is None for p in procs):
             tune_background_compilers()
-            route_audio()
             time.sleep(2)
     finally:
         for proc in procs:
@@ -200,11 +171,11 @@ def serve():
 
 def start():
     if active():print('Modo duo já está ativo.');return
-    validate(prepare_audio(config()),profiles=False)
+    validate(config(),profiles=False)
     # Login windows belong to this mode and hand their profiles over to the duo service.
     for n in (1,2):
         run(['systemctl','--user','stop',f'duoomarchy-login{n}.service'],False)
-    validate(prepare_audio(config()))
+    validate(config())
     envkeys=['DISPLAY','WAYLAND_DISPLAY','XDG_RUNTIME_DIR','XAUTHORITY','HYPRLAND_INSTANCE_SIGNATURE']
     run(['systemctl','--user','import-environment']+[k for k in envkeys if k in os.environ])
     run(['systemctl','--user','reset-failed',SERVICE],False)
@@ -227,7 +198,6 @@ def login(n):
     write_rules(c,ms)
     m=ms[p['monitor']]
     env=['SDL_VIDEODRIVER=x11',f'SDL_APP_ID=duoomarchy.player{n}',f'SDL_VIDEO_X11_WMCLASS=duoomarchy.player{n}',f'JOGARDUO_APP_ID=duoomarchy.player{n}']
-    if p['sink']:env+=['PULSE_SINK='+p['sink']]
     cmd=['systemd-run','--user','--unit='+unit,'--collect','--service-type=exec','-p','KillMode=control-group','env']+env+[str(BIN),'--backend',p.get('backend','wayland'),'-f','-W',str(m['width']),'-H',str(m['height']),'-w','1920','-h','1080','-r','60','--',str(BASE/'session.py'),str(n)]
     run(cmd)
     print(f"Steam de {p['name']} aberta em {p['monitor']}, com controle normal do desktop.")
@@ -236,8 +206,8 @@ def status():
     print('Modo duo: '+('ATIVO' if active() else 'DESLIGADO'))
     for n,p in enumerate(config()['players'],1):
         print(f"{n}. {p['name']}: {p['monitor']} — {p['fps']} FPS alvo")
-        print('   Teclado:',p['keyboard']);print('   Mouse:',p['mouse'] or 'FALTA CONFIGURAR');print('   Áudio:',p['sink'])
-    try:validate(prepare_audio(config()),profiles=not active());print('Dispositivos/configuração: OK; kit principal livre no Omarchy')
+        print('   Teclado:',p['keyboard']);print('   Mouse:',p['mouse'] or 'FALTA CONFIGURAR');print('   Áudio: escolha no mixer do sistema (Sonora).')
+    try:validate(config(),profiles=not active());print('Dispositivos/configuração: OK; kit principal livre no Omarchy')
     except (ValueError,subprocess.CalledProcessError) as e:print('Pendente:',e)
 
 def configure():
@@ -248,16 +218,13 @@ def configure():
     labels={}
     for kind in ('keyboard','mouse'):
         labels[kind]={d['name']+' | '+d['path'].split('/')[-1]:d['path'] for d in ds if d['kind']==kind}
-    for kind in ('sink','source'):
-        arr=json.loads(run(['pactl','--format=json','list',kind+'s']).stdout)
-        labels[kind]={d.get('description',d['name'])+' | '+str(d['index']):d['name'] for d in arr if not d['name'].endswith('.monitor')}
     labels['monitor']={m['description']:m['name'] for m in ms}
-    ttk.Label(root,text='Um monitor, teclado, mouse e fone para cada pessoa.',font=('',14)).pack(pady=15)
-    ttk.Label(root,text='O primeiro kit fica no Omarchy; apenas o segundo é capturado.\nOs fones podem ser configurados depois.').pack()
+    ttk.Label(root,text='Um monitor, teclado e mouse para cada pessoa.',font=('',14)).pack(pady=15)
+    ttk.Label(root,text='O primeiro kit fica no Omarchy; apenas o segundo é capturado.\nEscolha fone e microfone no Sonora.').pack()
     variables=[]
     for p in c['players']:
         frame=ttk.LabelFrame(root,text=p['name'],padding=12);frame.pack(fill='x',padx=18,pady=10);vs={}
-        for key,title in [('monitor','Monitor'),('keyboard','Teclado'),('mouse','Mouse'),('sink','Fone'),('source','Microfone')]:
+        for key,title in [('monitor','Monitor'),('keyboard','Teclado'),('mouse','Mouse')]:
             row=ttk.Frame(frame);row.pack(fill='x',pady=3);ttk.Label(row,text=title,width=12).pack(side='left')
             v=tk.StringVar(value=next((k for k,val in labels[key].items() if val==p[key]),''));vs[key]=v
             ttk.Combobox(row,textvariable=v,values=list(labels[key]),state='readonly',width=95).pack(side='left',fill='x',expand=True)
@@ -266,8 +233,8 @@ def configure():
         try:
             if active():raise ValueError('Desative o modo duo antes de trocar os kits.')
             for p,vs in zip(c['players'],variables):
-                for k,v in vs.items():p[k]=labels[k].get(v.get(),'') if k in ('sink','source') else labels[k][v.get()]
-            validate(prepare_audio(json.loads(json.dumps(c))),profiles=False)
+                for k,v in vs.items():p[k]=labels[k][v.get()]
+            validate(c,profiles=False)
             CONFIG.write_text(json.dumps(c,indent=2,ensure_ascii=False)+'\n')
             messagebox.showinfo('Salvo','Kits salvos. Execute jogarduosim para iniciar.');root.destroy()
         except (ValueError,KeyError,subprocess.CalledProcessError) as e:messagebox.showerror('Confira os dispositivos',str(e))

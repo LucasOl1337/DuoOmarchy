@@ -37,7 +37,7 @@ duoomarchy configurar
 
 Escolha monitor, teclado e mouse de cada pessoa. O primeiro kit é usado para validação contra sobreposição e **nunca é capturado**. Use os caminhos estáveis `/dev/input/by-id/…` sempre que existirem. Os dois monitores devem estar em workspaces humanos 1–5; 6–11 continuam reservados às bancadas de agentes.
 
-Fones podem ficar vazios: uma saída virtual silenciosa é usada até a seleção de um fone real. Para GPUs múltiplas, edite os campos opcionais `gpu` (`vendor:device`, como mostrado por `lspci -nn`) e `gpu_name` (nome Vulkan exato) do segundo jogador em `~/.config/duoomarchy/config.json`.
+Escolha a saída e o microfone de cada aplicativo no Sonora. O DuoOmarchy não reserva fones nem cria saídas virtuais. Para GPUs múltiplas, edite os campos opcionais `gpu` (`vendor:device`, como mostrado por `lspci -nn`) e `gpu_name` (nome Vulkan exato) do segundo jogador em `~/.config/duoomarchy/config.json`.
 
 Se o comando informar falta de permissão num dispositivo, confirme primeiro a ACL de sessão com `getfacl /dev/input/eventN`. Uma regra de udev/ACL específica para os dispositivos do segundo kit deve ser administrada conscientemente pelo dono da máquina. Não use `chmod 666 /dev/input/*`; pertencer ao grupo `input` também dá acesso amplo à digitação de outros dispositivos. O instalador deixa essa decisão explícita.
 

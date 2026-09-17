@@ -29,7 +29,9 @@ Verifique antes se a Steam principal está online. A mensagem `Session Replaced`
 
 ## Sem áudio
 
-Uma saída virtual silenciosa é intencional quando não há segundo fone configurado. Conecte o fone pelo Omarchy, escolha-o no Gerenciador e aplique. Verifique volume e mudo. O microfone pode ser escolhido na configuração dos kits; o painel atual foca a saída de áudio. Microfone Bluetooth e A2DP/HFP precisam de avaliação separada.
+Conecte o dispositivo pelo Omarchy e escolha saída e microfone por aplicativo no Sonora. Verifique volume e mudo ali. O DuoOmarchy não controla esses dispositivos.
+
+Ao atualizar uma sessão antiga ainda aberta, o processo pode conservar a saída virtual herdada no lançamento. Para interromper a regra antiga sem fechar os jogos, deixe `sink` e `source` vazios na configuração e reabra somente o gerenciador. A remoção completa das variáveis antigas entra em vigor na próxima abertura normal da segunda estação.
 
 ## Reportar problema
 

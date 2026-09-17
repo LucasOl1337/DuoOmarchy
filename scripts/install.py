@@ -35,7 +35,7 @@ def install(home, reload_systemd=True):
         if not dest.is_symlink():dest.symlink_to(target)
     config=configdir/'config.json'
     if not config.exists():
-        players=[{'name':name,'monitor':'','keyboard':'','mouse':'','sink':'','source':'','fps':120}
+        players=[{'name':name,'monitor':'','keyboard':'','mouse':'','fps':120}
                  for name in ('Principal','Segundo jogador')]
         players[1].update(backend='wayland',gpu='',gpu_name='')
         config.write_text(json.dumps({'players':players},indent=2,ensure_ascii=False)+'\n')

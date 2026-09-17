@@ -69,22 +69,38 @@ class Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'compartilham'):duo.validate(config())
 
     def test_only_second_kit_is_ever_captured(self):
-        c=config();launched=[];commands=[]
+        c=config();launched=[];commands=[];environments=[]
         ms={p['monitor']:{'width':2560,'height':1440} for p in c['players']}
         class Proc:
             pid=99999999
             def __init__(self):self.calls=0
             def poll(self):
-                self.calls+=1;return None if self.calls<=31 else 0
+                self.calls+=1;return None if self.calls<=34 else 0
             def wait(self,**kw):return 0
-        def launch(cmd,**kw):launched.append(cmd);return Proc()
+        def launch(cmd,**kw):launched.append(cmd);environments.append(kw['env']);return Proc()
         def run(args,*a,**kw):commands.append(args);return subprocess.CompletedProcess(args,0,'100\n','')
-        with tempfile.TemporaryDirectory() as td,patch.object(duo,'RUN',Path(td)/'run'),patch.object(duo,'RUNTIME',Path(td)),patch.object(duo,'BASE',Path(td)),patch.object(duo,'config',return_value=c),patch.object(duo,'prepare_audio',side_effect=lambda x:x),patch.object(duo,'validate',return_value=([['PRIMARY'],['SECOND']],ms)),patch.object(duo,'write_rules'),patch.object(duo,'run',side_effect=run),patch.object(duo.subprocess,'Popen',side_effect=launch),patch.object(duo.time,'sleep'),patch.object(duo,'tune_background_compilers'),patch.object(duo,'route_audio'),patch.object(duo.signal,'signal'):
+        with tempfile.TemporaryDirectory() as td,patch.object(duo,'RUN',Path(td)/'run'),patch.object(duo,'RUNTIME',Path(td)),patch.object(duo,'BASE',Path(td)),patch.object(duo,'config',return_value=c),patch.object(duo,'validate',return_value=([['PRIMARY'],['SECOND']],ms)),patch.object(duo,'write_rules'),patch.object(duo,'run',side_effect=run),patch.object(duo.subprocess,'Popen',side_effect=launch),patch.object(duo.time,'sleep'),patch.object(duo,'tune_background_compilers'),patch.object(duo.signal,'signal'),patch.dict(duo.os.environ,{'PULSE_SINK':'old-output','PULSE_SOURCE':'old-input'}):
             (Path(td)/'logs').mkdir();duo.serve()
         self.assertEqual(len(launched),1)
         self.assertIn('SECOND',launched[0]);self.assertNotIn('PRIMARY',launched[0])
         self.assertEqual(launched[0][-1],'2');self.assertEqual(launched[0][2],'wayland')
         self.assertFalse(any('set-property' in c for c in commands))
+        self.assertFalse(any(c[0]=='pactl' for c in commands))
+        self.assertNotIn('PULSE_SINK',environments[0])
+        self.assertNotIn('PULSE_SOURCE',environments[0])
+
+    def test_audio_configuration_is_not_required_or_validated(self):
+        for legacy in (False,True):
+            with self.subTest(legacy=legacy),tempfile.TemporaryDirectory() as td:
+                c=config()
+                for p in c['players']:
+                    if legacy:p.update(sink='disconnected',source='disconnected.monitor')
+                    else:p.pop('sink');p.pop('source')
+                binary=Path(td)/'gamescope';binary.touch()
+                with patch.object(duo,'BIN',binary),patch.object(duo,'held_devices',side_effect=[['PRIMARY'],['SECOND']]),patch.object(duo.os,'access',return_value=True),patch.object(duo,'run') as run:
+                    groups,_=duo.validate(c,display=False,profiles=False)
+                    self.assertEqual(groups,[['PRIMARY'],['SECOND']])
+                    run.assert_not_called()
 
     def test_restore_preserves_someone_elses_priority(self):
         with tempfile.TemporaryDirectory() as td,patch.object(duo,'RUN',Path(td)):
@@ -117,6 +133,8 @@ class Tests(unittest.TestCase):
         self.assertIn('/private/player2',cmd)
         self.assertIn('/dev/input',cmd);self.assertEqual(cmd[cmd.index('/dev/input')-1],'--tmpfs')
         self.assertIn('/run/user/2345/pulse/native',cmd)
+        for key in ('PULSE_SINK','PULSE_SOURCE'):
+            self.assertEqual(cmd[cmd.index(key)-1],'--unsetenv')
 
     def test_custom_steam_launch_options_are_preserved(self):
         import vdf
