@@ -85,7 +85,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(tools.SHARED_WRITABLE_PATHS,('.hermes/installs',))
         self.assertNotIn('.hermes',tools.SHARED_WRITABLE_PATHS)
         self.assertIn('.local/opt/maestri',tools.SHARED_PATHS)
-        for path in ('.codex/state_5.sqlite','.claude/projects','.jcode/client_sessions','.maestri/workspaces','.config/maestri','.omp/agent/agent.db','.codex/auth.json','.claude/.credentials.json','.grok/auth.json','.hermes/auth.json','.hermes/.env','.maestri/license.json'):
+        for path in ('.codex/state_5.sqlite','.claude/projects','.jcode/client_sessions','.maestri/workspaces','.config/maestri','.omp/agent/agent.db'):
             self.assertNotIn(path,tools.SHARED_PATHS)
         with tempfile.TemporaryDirectory() as td:
             host=Path(td);runtime=host/'run';runtime.mkdir();(runtime/'gamescope-test').touch()
@@ -96,19 +96,20 @@ class Tests(unittest.TestCase):
             for key in ('MAESTRI_SOCKET','JCODE_SESSION_ID'):
                 self.assertEqual(argv[argv.index(key)-1],'--unsetenv')
 
-    def test_install_does_not_copy_cli_logins(self):
+    def test_omp_auth_snapshot_is_writable_but_not_a_shared_database(self):
+        import sqlite3
+        from contextlib import closing
         with tempfile.TemporaryDirectory() as td:
-            host=Path(td)/'host';private=Path(td)/'private'
-            host.mkdir();private.mkdir()
-            (private/'.local/bin').mkdir(parents=True)
-            (private/'.config/duoomarchy-work').mkdir(parents=True)
-            (host/'.claude.json').write_text('{"oauthAccount":{"emailAddress":"principal@example.com"}}')
-            (host/'.omp/agent').mkdir(parents=True)
-            (host/'.omp/agent/agent.db').write_text('auth')
-            tools.install(private,host)
-            self.assertFalse((private/'.claude.json').exists())
-            self.assertFalse((private/'.omp/agent/agent.db').exists())
-            self.assertFalse((private/'.claude/.credentials.json').exists())
+            host=Path(td)/'host';private=Path(td)/'private';source=host/'.omp/agent/agent.db';source.parent.mkdir(parents=True)
+            with closing(sqlite3.connect(source)) as db:
+                db.executescript("CREATE TABLE auth_credentials (value TEXT); INSERT INTO auth_credentials VALUES ('fixture'); CREATE TABLE clients (id TEXT); INSERT INTO clients VALUES ('human');")
+            tools.seed_omp_auth(private,host)
+            destination=private/'.omp/agent/agent.db'
+            with closing(sqlite3.connect(destination)) as db:
+                self.assertEqual(db.execute('SELECT count(*) FROM auth_credentials').fetchone()[0],1)
+                self.assertEqual(db.execute('SELECT count(*) FROM clients').fetchone()[0],0)
+                db.execute("INSERT INTO clients VALUES ('own')");db.commit()
+            with closing(sqlite3.connect(source)) as db:self.assertEqual(db.execute('SELECT id FROM clients').fetchone()[0],'human')
 
     def test_control_endpoint_rejects_arbitrary_commands(self):
         control=module('control',ROOT/'src/session-control.py')
@@ -169,17 +170,17 @@ class Tests(unittest.TestCase):
             self.assertFalse((private/'.claude/skills/agent-bench').exists())
             self.assertTrue((private/'.claude/skills/renomeada').is_symlink())
 
-    def test_cli_logins_are_not_mounted(self):
+    def test_cli_logins_share_only_existing_auth_files(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);host=root/'host';runtime=root/'run';runtime.mkdir();(runtime/'gamescope-test').touch()
-            for name in ('.codex/auth.json','.claude/.credentials.json','.grok/auth.json','.hermes/.env','.maestri/license.json'):
+            for name in ('.codex/auth.json','.claude/.credentials.json','.grok/auth.json','.hermes/.env'):
                 p=host/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('{}')
             with patch.object(session,'HOME',host):args=session.command(root/'private',runtime,{'GAMESCOPE_WAYLAND_DISPLAY':'gamescope-test'},work=True)
-            for name in ('.codex/auth.json','.claude/.credentials.json','.grok/auth.json','.hermes/.env','.maestri/license.json'):
+            for name in ('.codex/auth.json','.claude/.credentials.json','.grok/auth.json','.hermes/.env'):
+                i=args.index(str(host/name));self.assertEqual(args[i-1],'--ro-bind')
+            for name in ('.codex','.claude','.grok'):
                 self.assertNotIn(str(host/name),args)
-            self.assertNotIn(str(host/'.codex'),args)
-            self.assertNotIn(str(host/'.claude'),args)
-            self.assertNotIn(str(host/'.grok'),args)
+            self.assertNotIn(str(host/'.config/maestri'),args)
 
     def test_window_rule_matches_only_the_station(self):
         import re
@@ -372,14 +373,16 @@ class Tests(unittest.TestCase):
 
     def test_work_desktop_receives_only_gamescope_wayland(self):
         with tempfile.TemporaryDirectory() as td:
-            runtime=Path(td);(runtime/'gamescope-7').touch()
-            cmd=session.command(Path('/private/player2'),runtime,{'GAMESCOPE_WAYLAND_DISPLAY':'gamescope-7'},work=True)
+            host=Path(td)/'host';runtime=Path(td)/'run';runtime.mkdir();(runtime/'gamescope-7').touch()
+            (host/'.local/share/mise').mkdir(parents=True)
+            with patch.object(session,'HOME',host):
+                cmd=session.command(Path('/private/player2'),runtime,{'GAMESCOPE_WAYLAND_DISPLAY':'gamescope-7'},work=True)
         self.assertEqual(cmd[cmd.index('WAYLAND_DISPLAY')+1],'gamescope-7')
         self.assertNotIn('WLR_BACKENDS',cmd)
-        self.assertIn(str(session.HOME/'Compartilhado'),cmd)
+        self.assertIn(str(host/'Compartilhado'),cmd)
         self.assertNotIn('/tmp/.X11-unix',cmd)
         self.assertIn('DISPLAY',cmd)
-        self.assertIn(str(session.HOME/'.local/share/mise'),cmd)
+        self.assertIn(str(host/'.local/share/mise'),cmd)
 
     def test_custom_steam_launch_options_are_preserved(self):
         import vdf

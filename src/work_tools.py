@@ -5,6 +5,7 @@ from contextlib import closing
 import os
 from pathlib import Path
 import shutil
+import sqlite3
 import sys
 
 SHARED_PATHS = (
@@ -23,6 +24,12 @@ SHARED_PATHS = (
 )
 # Dependency generation leases/locks are part of the shared install, not user sessions.
 SHARED_WRITABLE_PATHS = ('.hermes/installs',)
+SHARED_PATHS += (
+    '.codex/auth.json', '.claude/.credentials.json', '.grok/auth.json',
+    '.hermes/auth.json', '.hermes/.env', '.pi/agent/auth.json',
+    '.config/opencode/.env', '.local/share/opencode/auth.json',
+    '.config/cursor/auth.json', '.jcode/provider-9router.env',
+)
 TOOLS = {
     'codex': ('.local/share/mise/installs/codex/latest/bin/codex', ['--dangerously-bypass-approvals-and-sandbox'], {}),
     'claude': ('.local/share/mise/installs/claude/latest/claude', ['--dangerously-skip-permissions'], {}),
@@ -57,6 +64,20 @@ def seed_maestri(profile, source_home):
     destination.parent.mkdir(parents=True,exist_ok=True)
     destination.write_text(json.dumps(settings,ensure_ascii=False,indent=2)+'\n');destination.chmod(0o600)
 
+def seed_omp_auth(profile, source_home):
+    """SQLite credentials need a writable private store, without shared session state."""
+    source=source_home/'.omp/agent/agent.db';destination=profile/'.omp/agent/agent.db'
+    if not source.exists() or destination.exists():return
+    destination.parent.mkdir(parents=True,exist_ok=True)
+    with closing(sqlite3.connect(f'file:{source}?mode=ro',uri=True)) as incoming,closing(sqlite3.connect(destination)) as outgoing:
+        incoming.backup(outgoing)
+        outgoing.execute('PRAGMA foreign_keys=OFF')
+        for (table,) in outgoing.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
+            if table.startswith('sqlite_') or table.startswith('auth_') or table in ('settings','meta','schema_version'):continue
+            outgoing.execute('DELETE FROM "'+table.replace('"','""')+'"')
+        outgoing.commit()
+    destination.chmod(0o600)
+
 def install(profile, source_home):
     tools={}
     bin_dir=profile/'.local/bin';apps=profile/'.local/share/applications'
@@ -83,6 +104,11 @@ def install(profile, source_home):
     if (source_home/'.local/opt/maestri/current/maestri-app').exists():
         seed_maestri(profile,source_home)
         (apps/'duoomarchy-maestri.desktop').write_text('[Desktop Entry]\nType=Application\nName=Maestri\nComment=Canvas próprio da segunda estação\nExec=maestri-abrir\nIcon=utilities-terminal\nTerminal=false\nCategories=Development;\n')
+
+    seed_omp_auth(profile,source_home)
+    source=source_home/'.claude.json';destination=profile/'.claude.json'
+    if source.is_file() and not destination.exists():
+        shutil.copy2(source,destination);destination.chmod(0o600)
 
 def maestri_identity(home, environ, proc_root=Path('/proc')):
     environment=dict(environ)

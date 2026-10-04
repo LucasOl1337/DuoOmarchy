@@ -11,11 +11,8 @@ import vdf
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from work_tools import SHARED_PATHS, SHARED_WRITABLE_PATHS
 
-# Station CLIs stay logged out. Skills and repos are shared; account files are not.
-LOGIN_FILES = {
-    'auth.json', '.credentials.json', '.env', 'license.json', '.license-credentials.json',
-    'provider-9router.env',
-}
+# CLI account sharing is explicitly authorized for this station.
+# Browser cookies, conversation stores and the principal Maestri canvas stay private.
 
 HOME = Path.home()
 BASE = Path(os.environ.get('DUOOMARCHY_DATA', HOME / '.local/share/duoomarchy'))
@@ -92,7 +89,6 @@ def command(home, runtime, env, work=False):
         values['WAYLAND_DISPLAY']=socket_name
         args += ['--bind',str(HOME),str(HOME/'Compartilhado')]
         for relative in SHARED_PATHS:
-            if Path(relative).name in LOGIN_FILES:continue
             source=HOME/relative
             if source.exists():args += ['--ro-bind',str(source),str(HOME/relative)]
         for relative in SHARED_WRITABLE_PATHS:
