@@ -2,7 +2,7 @@
 
 # DuoOmarchy
 
-### Um PC. Duas pessoas. Cada uma no seu jogo.
+### Um PC. Duas pessoas. Jogo e trabalho em estações separadas.
 
 Duas contas Steam, dois kits de teclado e mouse, uma GPU compartilhada.<br>
 Seu Omarchy continua seu. A segunda estação fica sob seu controle.
@@ -42,9 +42,15 @@ Abra **DuoOmarchy — Gerenciador** no menu do Omarchy, ou execute:
 duoomarchy manager
 ```
 
-O painel permite ligar e encerrar a segunda estação, abrir e fechar a Steam, iniciar Overwatch, abrir um Chromium com perfil próprio. Saída de áudio, microfone, volume e mudo ficam no Sonora ou no mixer do sistema. O controle usa um socket local dentro da sessão; não precisa automatizar seu mouse, abrir portas de rede ou solicitar `sudo` a cada botão.
+O painel compacto concentra **Jogar**, **Trabalhar**, **Encerrar**, **Mostrar estação** e as ações rápidas. **Configurar tudo** abre quatro abas para comparar os dois perfis e escolher nomes, monitores, workspaces, reserva persistente, teclados, mouses, DPI, controles, entradas extras, áudio, microfone, volumes, FPS, resolução interna, escala, filtro, GPU e backend. O controle usa um socket local dentro da sessão; não precisa automatizar seu mouse, abrir portas de rede ou solicitar `sudo` a cada botão.
 
-O segundo jogador não recebe outro Omarchy completo. A proposta é uma estação de aplicativos e jogos administrada pelo desktop principal. A interface de configuração dos kits fica em `duoomarchy configurar`.
+No modo trabalho, a segunda pessoa recebe uma sessão do Omarchy: shell oficial, barra, wallpaper, lista de aplicativos, menus, tema e atalhos padrão. As configurações dela ficam na home privada. A interface de configuração dos kits fica em `duoomarchy configurar`.
+
+O modo trabalho usa o Omarchy instalado no PC, com nove workspaces próprios. `Super+Space` abre a lista completa de apps, `Super+Return` abre o terminal, `Super+Shift+Return` abre o navegador e `Super+K` mostra os atalhos. Copiar/colar, grupos, tiling, temas e configurações usam os componentes do Omarchy. Preferências visuais e plugins começam com uma cópia das preferências do desktop principal; depois são independentes. `~/Compartilhado`, `~/Projects` e `~/Documents` dão acesso aos arquivos comuns. Codex, Claude Code e Grok CLI usam as autenticações existentes por montagens somente para leitura; navegadores mantêm seus próprios perfis.
+
+![Omarchy na segunda estação](docs/images/work.png)
+
+O workspace externo da segunda estação pode ficar reservado ao monitor dela. A janela ocupa o monitor inteiro e volta silenciosamente para essa posição se for movida. A barra dela mostra apenas os workspaces próprios; a barra e os workspaces externos ficam cobertos. **Mostrar estação** permite ao usuário principal navegar até ela, enquanto a entrada continua pertencendo ao kit físico configurado para a segunda pessoa.
 
 ## Ligar e jogar
 
@@ -52,6 +58,7 @@ Depois de [instalar e selecionar os kits](docs/INSTALL.md):
 
 ```sh
 jogarduosim       # abre a segunda estação
+duoomarchy work   # abre o desktop privado de trabalho
 jogarduonao       # fecha seus aplicativos e devolve o kit ao desktop
 ```
 
@@ -61,13 +68,15 @@ Entre na segunda conta Steam diretamente na janela secundária. A conta principa
 
 ## O que existe nesta primeira versão
 
-- Captura seletiva e exclusiva do segundo teclado/mouse, incluindo interfaces auxiliares reconhecidas pelo libinput.
+- Captura seletiva e exclusiva do segundo teclado, mouse e controle opcional, incluindo interfaces auxiliares reconhecidas pelo libinput.
 - Gamescope privado, compilado com um patch reproduzível; o Gamescope instalado pelo sistema não é substituído.
 - Perfil Steam e ambientes de Proton separados; instalação opcional dos jogos por cópia Btrfs CoW.
 - Backend Wayland nativo como padrão; SDL disponível para diagnóstico.
 - Supervisão por systemd, saída de emergência e encerramento se um dispositivo capturado for removido.
 - Gerenciador local e controle de aplicativos persistente, com protocolo de comandos restrito.
-- Áudio compartilhado com o sistema, selecionado por aplicativo no Sonora, sem roteamento automático pelo DuoOmarchy.
+- Desktop Hyprland privado para trabalho, com 1–9 workspaces, shell oficial e preferências próprias.
+- Reserva persistente do workspace externo, com reconciliação apenas da janela da própria estação.
+- Áudio compartilhado com o sistema, com alvos opcionais por estação e ajustes ao vivo pelo Sonora.
 - Ajustes de memória e de compilação de shaders para a sessão secundária.
 
 ## Antes de instalar
@@ -86,4 +95,10 @@ Código de integração sob [MIT](LICENSE). Veja [THIRD_PARTY.md](THIRD_PARTY.md
 
 ---
 
-**English:** DuoOmarchy runs a second independent Steam gaming station on the same Omarchy PC while preserving the primary user's desktop and keyboard shortcuts. It uses a patched Gamescope compositor, selective input capture, a private Steam home and a small management app on the main desktop. Experimental; tested on one AMD CPU / NVIDIA GPU setup. Portuguese documentation is the primary reference; contributions are welcome.
+**English:** DuoOmarchy runs a second independent gaming or work station on the same Omarchy PC while preserving the primary user's desktop and keyboard shortcuts. It uses a patched Gamescope compositor, selective input capture, a private home, and an optional nested Hyprland desktop. Experimental; tested on one AMD CPU / NVIDIA GPU setup. Portuguese documentation is the primary reference; contributions are welcome.
+
+### Terminais e Maestri
+
+Os harnesses reutilizam os binários instalados e as configs do PC: Codex, Claude Code, Grok, Hermes, Pi, Oh My Pi, OpenCode, Cursor Agent, Devin, jcode e Antigravity, quando presentes. Os wrappers da estação liberam as permissões de execução nos comandos que oferecem esse modo. Pi e jcode mantêm seu modelo nativo e as configurações existentes. Históricos, bancos de sessão e processos continuam na home privada. Os arquivos de configuração e autenticação são montados somente para leitura; o banco de autenticação do Oh My Pi recebe uma cópia inicial privada, porque precisa aceitar escritas do SQLite.
+
+O launcher inclui cada harness disponível e **Maestri**. `maestri-abrir` reutiliza o bundle instalado, com perfil Electron, canvas, daemon, terminais e sockets próprios. A licença existente é acessível, sem compartilhar o perfil do navegador do app. Os presets de agentes são inicializados como no Maestri principal; não são importados canvases, workspaces nem terminais ativos. SSH e remote companion começam desligados, a porta reservada é 7434 e a instalação de CLI em hosts remotos fica desligada. `maestri` no terminal aponta apenas para a CLI da instância desta estação.

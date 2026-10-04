@@ -6,7 +6,7 @@ Execute `jogarduonao` no terminal principal. A versão atual não captura o prim
 
 ## Steam fechada / quero abrir novamente
 
-Abra o Gerenciador e use **Abrir Steam**. O serviço de controle continua vivo mesmo sem janela. Se a sessão inteira estiver desligada, use **Ligar sessão** primeiro. O modo não fornece um segundo Hyprland; gerencie os aplicativos pelo painel principal.
+Abra o Gerenciador e use **Abrir Steam**. O serviço de controle continua vivo mesmo sem janela. Se a sessão inteira estiver desligada, use **Ligar sessão** primeiro. O modo jogo não fornece um segundo Hyprland; gerencie os aplicativos pelo painel principal.
 
 ## Sessão não inicia
 
@@ -15,7 +15,11 @@ duoomarchy status
 journalctl --user -u duoomarchy.service -n 60
 ```
 
-Verifique caminhos USB, permissões, monitor e o log `~/.local/share/duoomarchy/logs/player2.log`. Monitores nos workspaces 6–11 são recusados. Se um dispositivo for removido, reconecte, confira o caminho estável e reabra a sessão. Não contorne a verificação de sobreposição dos kits.
+Verifique caminhos USB, permissões, monitor e o log `~/.local/share/duoomarchy/logs/player2.log`. O monitor da segunda estação precisa estar num workspace humano 1–5 ao iniciar. Workspaces externos 6–11 continuam pertencendo às bancadas dos agentes. Se um dispositivo for removido, reconecte, confira o caminho estável e reabra a sessão. Não contorne a verificação de sobreposição dos kits.
+
+## Desktop de trabalho não abre
+
+Encerre o modo jogo antes de escolher **Trabalhar**. Confira `~/.local/share/duoomarchy/logs/player2.log` para a inicialização do Gamescope e do Hyprland aninhado. O modo exige o socket Wayland publicado pelo Gamescope; não remova `GAMESCOPE_WAYLAND_DISPLAY` nem exponha o compositor humano dentro da home privada.
 
 ## FPS alto, movimento irregular
 
@@ -29,10 +33,16 @@ Verifique antes se a Steam principal está online. A mensagem `Session Replaced`
 
 ## Sem áudio
 
-Conecte o dispositivo pelo Omarchy e escolha saída e microfone por aplicativo no Sonora. Verifique volume e mudo ali. O DuoOmarchy não controla esses dispositivos.
+Conecte o dispositivo pelo Omarchy e reabra o configurador para selecioná-lo. A estação isolada recebe a saída e o microfone no início da sessão; use o Sonora para trocar, verificar volume ou mudo enquanto ela estiver aberta.
 
 Ao atualizar uma sessão antiga ainda aberta, o processo pode conservar a saída virtual herdada no lançamento. Para interromper a regra antiga sem fechar os jogos, deixe `sink` e `source` vazios na configuração e reabra somente o gerenciador. A remoção completa das variáveis antigas entra em vigor na próxima abertura normal da segunda estação.
 
 ## Reportar problema
 
 Informe versão do Omarchy, GPU/driver, backend, resolução/Hz e se o erro acontece no menu ou em jogo. Envie apenas trechos relevantes dos logs. Nunca anexe o home `player2`, arquivos de login Steam, tokens, saves privados ou dumps de memória completos a uma issue pública.
+
+## Rede ou login no desktop de trabalho
+
+A rede é a mesma do PC. O runtime privado preserva o resolver apontado por `/etc/resolv.conf` e o socket do D-Bus de sistema usado pelo indicador de rede. Instalações anteriores à v0.2.0-alpha.1 escondiam `/run/systemd/resolve`, impedindo o DNS de funcionar. Atualize o código e reabra a estação.
+
+Codex, Claude Code e Grok CLI não recebem o login do PC. Históricos e configurações continuam na home da estação, e os CLIs abrem deslogados. O Grok reutiliza o binário já instalado, sem tentar reinstalar pelo mise na sessão. Navegadores e apps com janela mantêm perfis próprios e podem pedir seu próprio login.

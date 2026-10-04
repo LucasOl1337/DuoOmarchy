@@ -1,0 +1,77 @@
+--- a/src/wlserver.cpp
++++ b/src/wlserver.cpp
+@@ -227,7 +227,14 @@
+ 		if ( !wlserver_xdg_surface_info->bDoneConfigure )
+ 		{
+ 			if ( wlserver_xdg_surface_info->xdg_surface )
+-				wlr_xdg_surface_schedule_configure( wlserver_xdg_surface_info->xdg_surface );
++			{
++                auto *xdg = wlserver_xdg_surface_info->xdg_surface;
++                if (xdg->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
++                    wlr_xdg_toplevel_set_size(xdg->toplevel, g_nNestedWidth, g_nNestedHeight);
++                    wlr_xdg_toplevel_set_activated(xdg->toplevel, true);
++                }
++				wlr_xdg_surface_schedule_configure(xdg);
++			}
+ 
+ 			if ( wlserver_xdg_surface_info->layer_surface )
+ 				wlr_layer_surface_v1_configure( wlserver_xdg_surface_info->layer_surface, g_nNestedWidth, g_nNestedHeight );
+@@ -2043,7 +2050,7 @@
+ 
+ 	wlr_renderer_init_wl_display(wlserver.wlr.renderer, wlserver.display);
+ 
+-	wlserver.wlr.compositor = wlr_compositor_create(wlserver.display, 5, wlserver.wlr.renderer);
++	wlserver.wlr.compositor = wlr_compositor_create(wlserver.display, 6, wlserver.wlr.renderer);
+ 
+ 	wl_signal_add( &wlserver.wlr.compositor->events.new_surface, &new_surface_listener );
+ 
+@@ -2094,7 +2101,7 @@
+ 
+ 	wlr_data_device_manager_create(wlserver.display);
+ 
+-	wlserver.xdg_shell = wlr_xdg_shell_create(wlserver.display, 3);
++	wlserver.xdg_shell = wlr_xdg_shell_create(wlserver.display, 6);
+ 	if (!wlserver.xdg_shell)
+ 	{
+ 		wl_log.infof("Unable to create XDG shell interface");
+--- a/src/LibInputHandler.cpp
++++ b/src/LibInputHandler.cpp
+@@ -288,7 +288,7 @@
+                     if (held_keys[KEY_LEFTCTRL] && held_keys[KEY_LEFTALT] && held_keys[KEY_F12])
+                         _exit(0);
+ 
+-                    if (held_keys[KEY_G] && held_keys[KEY_LEFTMETA]) toggle_grab_on_all_keys_up = true;
++                    if (g_libinputSelectedDevices.empty() && held_keys[KEY_G] && held_keys[KEY_LEFTMETA]) toggle_grab_on_all_keys_up = true;
+ 
+                     if (toggle_grab_on_all_keys_up && held_keys.none()) {
+                         toggle_grab_on_all_keys_up = false;
+--- a/src/Backends/SDLBackend.cpp
++++ b/src/Backends/SDLBackend.cpp
+@@ -781,7 +781,7 @@
+ 					if (key <= KEY_MAX) {
+                         held_keys[key] = (event.type == SDL_KEYUP); // Toggle the pressed button
+                     }
+-					if (held_keys[KEY_G] && held_keys[KEY_LEFTMETA]) toggle_grab_on_all_keys_up = true;
++					if (g_libinputSelectedDevices.empty() && held_keys[KEY_G] && held_keys[KEY_LEFTMETA]) toggle_grab_on_all_keys_up = true;
+ 
+  					if (toggle_grab_on_all_keys_up && held_keys.none()) {
+ 						toggle_grab_on_all_keys_up = false;
+--- a/src/Backends/WaylandBackend.cpp
++++ b/src/Backends/WaylandBackend.cpp
+@@ -1306,6 +1306,7 @@
+ 
+     void CWaylandConnector::SetSelection( std::shared_ptr<std::string> szContents, GamescopeSelection eSelection )
+     {
++        if (getenv("JOGARDUO_APP_ID")) return;
+         if ( m_pBackend->m_pDataDeviceManager && !m_pBackend->m_pDataDevice )
+             m_pBackend->m_pDataDevice = wl_data_device_manager_get_data_device( m_pBackend->m_pDataDeviceManager, m_pBackend->m_pSeat );
+ 
+@@ -2923,7 +2924,7 @@
+             if (uKey <= KEY_MAX) {
+                 held_keys[uKey] = bPressed; // Toggle the pressed button
+             }
+-            if (held_keys[KEY_G] && held_keys[KEY_LEFTMETA]) toggle_grab_on_all_keys_up = true;
++            if (g_libinputSelectedDevices.empty() && held_keys[KEY_G] && held_keys[KEY_LEFTMETA]) toggle_grab_on_all_keys_up = true;
+ 
+             if (toggle_grab_on_all_keys_up && held_keys.none()) {
+                 toggle_grab_on_all_keys_up = false;

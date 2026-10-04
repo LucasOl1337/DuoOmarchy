@@ -1,0 +1,76 @@
+[
+  [
+    "Novidades",
+    "#FFC61A",
+    [
+      [
+        "Omarchy completo",
+        "Apps, menus e atalhos padrão, com workspaces 1–9 próprios.",
+        "DESKTOP"
+      ],
+      [
+        "Arquivos e acessos comuns",
+        "Codex, Claude Code e Grok CLI usam os logins existentes.",
+        "ARQUIVOS / CLI"
+      ],
+      [
+        "Mesmos harnesses e configs",
+        "Binários compartilhados e execução com permissões liberadas.",
+        "TERMINAIS"
+      ],
+      [
+        "Maestri independente",
+        "Canvas, terminais, perfil e sockets próprios pra segunda estação.",
+        "MAESTRI"
+      ]
+    ]
+  ],
+  [
+    "Melhorias",
+    "#2DD29A",
+    [
+      [
+        "Dois kits no configurador",
+        "Monitor, entrada, áudio e renderização no mesmo painel.",
+        "CONFIGURAÇÃO"
+      ],
+      [
+        "Preferências independentes",
+        "Tema, wallpaper e plugins começam como no desktop principal.",
+        "PREFERÊNCIAS"
+      ]
+    ]
+  ],
+  [
+    "Correções",
+    "#30BCEF",
+    [
+      [
+        "Rede na segunda estação",
+        "DNS, HTTPS e o indicador continuam funcionando.",
+        "REDE"
+      ],
+      [
+        "Tela inteira pra ela",
+        "A barra externa fica coberta; aparecem só os workspaces dela.",
+        "MONITOR"
+      ],
+      [
+        "Shell sem interromper o controle",
+        "A estação continua respondendo enquanto a interface carrega.",
+        "INICIALIZAÇÃO"
+      ]
+    ]
+  ],
+  [
+    "Sistemas",
+    "#AA88FA",
+    [
+      [
+        "Compositores no runtime privado",
+        "Gamescope e Aquamarine adaptados pro Hyprland aninhado.",
+        "RUNTIME"
+      ]
+    ]
+  ]
+]

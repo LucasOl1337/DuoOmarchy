@@ -14,17 +14,204 @@ def module(name,path):
 duo=module('duo',ROOT/'src/duoomarchy.py')
 installer=module('installer',ROOT/'scripts/install.py')
 session=module('session',ROOT/'src/session.py')
+tools=module('tools',ROOT/'src/work_tools.py')
 
 def config():
-    return {'players':[{'name':'P1','monitor':'DP-1','keyboard':'p1kbd','mouse':'p1mouse','sink':'a','source':'a.monitor','fps':120},
-                       {'name':'P2','monitor':'DP-2','keyboard':'p2kbd','mouse':'p2mouse','sink':'b','source':'b.monitor','fps':120,'backend':'wayland'}]}
+    return {'players':[{'name':'P1','monitor':'DP-1','workspace':1,'keyboard':'p1kbd','mouse':'p1mouse','gamepad':'','sink':'a','source':'a-input','fps':120},
+                       {'name':'P2','monitor':'DP-2','workspace':2,'keyboard':'p2kbd','mouse':'p2mouse','gamepad':'','sink':'b','source':'b-input','fps':120,'backend':'wayland'}]}
 
 class Tests(unittest.TestCase):
+    def test_maestri_profile_does_not_import_canvas_or_tunnel(self):
+        with tempfile.TemporaryDirectory() as td:
+            host=Path(td)/'host';private=Path(td)/'private'
+            p=host/'.maestri/preferences.json';p.parent.mkdir(parents=True)
+            p.write_text(json.dumps({'payload':{'sshEnabled':True,'sshAddToPath':True,'agentPresets':[{'command':'claude'}]},'schemaVersion':1}))
+            (host/'.maestri/license.json').write_text('{"payload":{"isActivated":true}}')
+            tools.seed_maestri(private,host)
+            self.assertEqual((private/'.maestri/license.json').stat().st_mode & 0o777,0o600)
+            self.assertTrue(json.loads((private/'.maestri/license.json').read_text())['payload']['isActivated'])
+            own=json.loads((private/'.maestri/preferences.json').read_text())['payload']
+            self.assertEqual(own['agentPresets'],[{'command':'claude'}])
+            self.assertFalse(own['sshEnabled']);self.assertFalse(own['sshAddToPath'])
+            self.assertEqual(own['sshTunnelPort'],7434)
+            self.assertTrue(json.loads(p.read_text())['payload']['sshEnabled'])
+            self.assertFalse((private/'.maestri/workspaces').exists())
+            tools.seed_maestri(private,host)
+            self.assertEqual(json.loads((private/'.maestri/preferences.json').read_text())['payload'],own)
+
+    def test_maestri_launch_has_its_own_electron_and_cli_identity(self):
+        home=Path('/station')
+        argv,env=tools.invocation('maestri-abrir',[],home,{'MAESTRI_SOCKET':'human.sock','MAESTRI_TERMINAL_ID':'human','PATH':'/usr/bin'})
+        self.assertIn('--user-data-dir=/station/.config/duoomarchy-maestri',argv)
+        self.assertEqual(env['MAESTRI_DATA_DIR'],'/station/.maestri')
+        self.assertNotIn('MAESTRI_SOCKET',env);self.assertNotIn('MAESTRI_TERMINAL_ID',env)
+        with self.assertRaisesRegex(RuntimeError,'terminal do Maestri'):tools.invocation('maestri',['list'],home,{})
+        cli,_=tools.invocation('maestri',['list'],home,{'MAESTRI_SOCKET':'own.sock','MAESTRI_TERMINAL_ID':'own'})
+        self.assertEqual(cli[0],'/station/.local/opt/maestri/current/resources/cli/maestri')
+
+    def test_jcode_maestri_routes_to_the_station_client_terminal(self):
+        with tempfile.TemporaryDirectory() as td:
+            home=Path(td)/'private';proc=Path(td)/'proc'
+            client=home/'.jcode/client_sessions/123';client.parent.mkdir(parents=True);client.write_text('own-session')
+            identity=proc/'123/environ';identity.parent.mkdir(parents=True)
+            identity.write_bytes(b'MAESTRI_TERMINAL_ID=own-client\0MAESTRI_SOCKET=/tmp/own.sock\0SECRET_TOKEN=fixture\0')
+            env=tools.maestri_identity(home,{'JCODE_SESSION_ID':'own-session','MAESTRI_TERMINAL_ID':'server-owner'},proc)
+            self.assertEqual(env['MAESTRI_TERMINAL_ID'],'own-client')
+            self.assertEqual(env['MAESTRI_SOCKET'],'/tmp/own.sock')
+            self.assertNotIn('SECRET_TOKEN',env)
+            absent=tools.maestri_identity(home,{'JCODE_SESSION_ID':'other-session'},proc)
+            self.assertNotIn('MAESTRI_SOCKET',absent)
+
+    def test_tool_wrappers_apply_bypass_to_the_shared_install(self):
+        with tempfile.TemporaryDirectory() as td:
+            home=Path(td);(home/'.local/bin').mkdir(parents=True);(home/'.config/duoomarchy-work').mkdir(parents=True)
+            for name,(path,flags,env) in tools.TOOLS.items():
+                if name in ('agent','devin','agy'):continue
+                target=home/path;target.parent.mkdir(parents=True,exist_ok=True);target.touch()
+            tools.install(home,home)
+            for name in ('codex','claude','grok','omp'):
+                argv,env=tools.invocation(name,['--help'],home,{})
+                self.assertIn(tools.TOOLS[name][1][0],argv)
+                self.assertEqual(argv[-1],'--help')
+                self.assertTrue((home/'.local/share/applications'/f'duoomarchy-{name}.desktop').exists())
+            _,env=tools.invocation('hermes',[],home,{})
+            self.assertEqual(env['HERMES_YOLO_MODE'],'true')
+            _,env=tools.invocation('opencode',[],home,{})
+            self.assertEqual(json.loads(env['OPENCODE_PERMISSION']),{'*':'allow'})
+
+    def test_shared_settings_exclude_live_session_stores(self):
+        self.assertIn('.codex/config.toml',tools.SHARED_PATHS)
+        self.assertIn('.hermes/hermes-agent',tools.SHARED_PATHS)
+        self.assertEqual(tools.SHARED_WRITABLE_PATHS,('.hermes/installs',))
+        self.assertNotIn('.hermes',tools.SHARED_WRITABLE_PATHS)
+        self.assertIn('.local/opt/maestri',tools.SHARED_PATHS)
+        for path in ('.codex/state_5.sqlite','.claude/projects','.jcode/client_sessions','.maestri/workspaces','.config/maestri','.omp/agent/agent.db','.codex/auth.json','.claude/.credentials.json','.grok/auth.json','.hermes/auth.json','.hermes/.env','.maestri/license.json'):
+            self.assertNotIn(path,tools.SHARED_PATHS)
+        with tempfile.TemporaryDirectory() as td:
+            host=Path(td);runtime=host/'run';runtime.mkdir();(runtime/'gamescope-test').touch()
+            settings=host/'.codex/config.toml';settings.parent.mkdir();settings.touch()
+            with patch.object(session,'HOME',host):
+                argv=session.command(host/'private',runtime,{'GAMESCOPE_WAYLAND_DISPLAY':'gamescope-test','MAESTRI_SOCKET':'human','JCODE_SESSION_ID':'human'},True)
+            i=argv.index(str(settings));self.assertEqual(argv[i-1],'--ro-bind')
+            for key in ('MAESTRI_SOCKET','JCODE_SESSION_ID'):
+                self.assertEqual(argv[argv.index(key)-1],'--unsetenv')
+
+    def test_install_does_not_copy_cli_logins(self):
+        with tempfile.TemporaryDirectory() as td:
+            host=Path(td)/'host';private=Path(td)/'private'
+            host.mkdir();private.mkdir()
+            (private/'.local/bin').mkdir(parents=True)
+            (private/'.config/duoomarchy-work').mkdir(parents=True)
+            (host/'.claude.json').write_text('{"oauthAccount":{"emailAddress":"principal@example.com"}}')
+            (host/'.omp/agent').mkdir(parents=True)
+            (host/'.omp/agent/agent.db').write_text('auth')
+            tools.install(private,host)
+            self.assertFalse((private/'.claude.json').exists())
+            self.assertFalse((private/'.omp/agent/agent.db').exists())
+            self.assertFalse((private/'.claude/.credentials.json').exists())
+
     def test_control_endpoint_rejects_arbitrary_commands(self):
         control=module('control',ROOT/'src/session-control.py')
         with patch.object(control,'launch') as launch:
             self.assertFalse(control.dispatch('rm -rf /')['ok'])
             launch.assert_not_called()
+
+    def test_work_ping_waits_for_a_sized_output(self):
+        control=module('control_ready',ROOT/'src/session-control.py')
+        with patch.dict(control.os.environ,{'DUOOMARCHY_MODE':'work'}),patch.object(control,'DESKTOP_READY',True):
+            for width,expected in ((0,False),(1920,True)):
+                result=subprocess.CompletedProcess([],0,json.dumps([{'width':width,'height':1080}]),'')
+                with patch.object(control.subprocess,'run',return_value=result):
+                    self.assertEqual(control.dispatch('ping')['ready'],expected)
+            with patch.object(control.subprocess,'run',side_effect=subprocess.TimeoutExpired('hyprctl',2)):
+                self.assertFalse(control.dispatch('ping')['ready'])
+
+    def test_private_run_keeps_the_host_resolver(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            (root/'pulse').mkdir();(root/'pulse/native').touch()
+            args=session.command(root/'home',root,{})
+            resolver=Path('/etc/resolv.conf').resolve()
+            if resolver.is_file():
+                source=resolver.parent if resolver.is_relative_to('/run') else resolver
+                index=args.index(str(source))
+                self.assertEqual(args[index-1],'--ro-bind')
+                self.assertNotIn('--unshare-net',args)
+
+    def test_host_wayland_is_never_a_work_fallback(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);(root/'wayland-human').touch()
+            with self.assertRaisesRegex(ValueError,'desktop principal'):
+                session.command(root/'home',root,{'WAYLAND_DISPLAY':'wayland-human'},work=True)
+
+    def test_machine_skills_are_linked_without_mixing_accounts(self):
+        with tempfile.TemporaryDirectory() as td:
+            host=Path(td)/'host'; private=Path(td)/'private'
+            skill=host/'.agents/skills/agent-bench'; skill.mkdir(parents=True)
+            (skill/'SKILL.md').write_text('# bench\n')
+            (host/'.agents/skills/synced/conta-principal/pdf').mkdir(parents=True)
+            (private/'.claude/skills/synced/conta-dela').mkdir(parents=True)
+            (private/'.codex/skills/.system').mkdir(parents=True)
+            (private/'.claude/.credentials.json').write_text('dela')
+            self.assertGreater(session.share_machine_skills(private, host), 0)
+            for relative in session.SKILL_DIRS:
+                link=private/relative/'agent-bench'
+                self.assertTrue(link.is_symlink(), relative)
+                self.assertEqual(link.readlink(), host/'.agents/skills/agent-bench')
+            self.assertTrue((private/'.claude/skills/synced/conta-dela').is_dir())
+            self.assertFalse((private/'.claude/skills/synced/conta-principal').exists())
+            self.assertFalse((private/'.grok/skills/synced').exists())
+            self.assertFalse((private/'.codex/skills/synced').exists())
+            self.assertTrue((private/'.codex/skills/.system').is_dir())
+            self.assertEqual((private/'.claude/.credentials.json').read_text(), 'dela')
+            skill.rename(host/'.agents/skills/renomeada')
+            session.share_machine_skills(private, host)
+            self.assertFalse((private/'.claude/skills/agent-bench').exists())
+            self.assertTrue((private/'.claude/skills/renomeada').is_symlink())
+
+    def test_cli_logins_are_not_mounted(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);host=root/'host';runtime=root/'run';runtime.mkdir();(runtime/'gamescope-test').touch()
+            for name in ('.codex/auth.json','.claude/.credentials.json','.grok/auth.json','.hermes/.env','.maestri/license.json'):
+                p=host/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('{}')
+            with patch.object(session,'HOME',host):args=session.command(root/'private',runtime,{'GAMESCOPE_WAYLAND_DISPLAY':'gamescope-test'},work=True)
+            for name in ('.codex/auth.json','.claude/.credentials.json','.grok/auth.json','.hermes/.env','.maestri/license.json'):
+                self.assertNotIn(str(host/name),args)
+            self.assertNotIn(str(host/'.codex'),args)
+            self.assertNotIn(str(host/'.claude'),args)
+            self.assertNotIn(str(host/'.grok'),args)
+
+    def test_window_rule_matches_only_the_station(self):
+        import re
+        rule=duo.rule(config()['players'][1],2,{'activeWorkspace':{'id':2}})
+        value=json.loads(re.search(r'class=("(?:[^"\\]|\\.)*")',rule).group(1))
+        self.assertRegex(duo.APP_PREFIX+'.player2',value)
+        self.assertIsNone(re.search(value,duo.APP_PREFIX+'Xplayer2'))
+        self.assertIsNone(re.search(value,duo.APP_PREFIX+'.player1'))
+
+    def test_station_fullscreen_targets_only_its_window(self):
+        station={'class':duo.APP_PREFIX+'.player2','address':'0xabc','workspace':{'id':2},'monitor':1,'fullscreen':0,'fullscreenClient':0}
+        human={'class':'brave','address':'0xdef','fullscreen':0}
+        p=duo.normalize_config(config())['players'][1];p['workspace_locked']=True
+        result=subprocess.CompletedProcess([],0,json.dumps([human,station]),'')
+        with patch.object(duo,'run',return_value=result) as call,patch.object(duo,'monitors',return_value=[{'id':1,'name':'DP-2'}]):
+            duo.keep_station_reserved(p)
+            operation=call.call_args.args[0]
+            self.assertEqual(operation[:2],['hyprctl','dispatch'])
+            self.assertIn('window="address:0xabc"',operation[2])
+            self.assertIn('action="set"',operation[2])
+            self.assertNotIn('focus',operation[2])
+            station.update(fullscreen=2,fullscreenClient=2)
+            call.reset_mock();call.return_value=subprocess.CompletedProcess([],0,json.dumps([human,station]),'')
+            duo.keep_station_reserved(p)
+            self.assertEqual(call.call_count,1)
+
+    def test_work_actions_are_fixed_commands(self):
+        control=module('control_work',ROOT/'src/session-control.py')
+        with patch.object(control,'launch') as launch:
+            self.assertTrue(control.dispatch('codex')['ok'])
+            self.assertEqual(launch.call_args.args[0][-2],'-c')
+            self.assertIn(str(control.HOME/'.local/bin/codex'),launch.call_args.args[0][-1])
 
     def test_browser_uses_private_profile(self):
         control=module('control_browser',ROOT/'src/session-control.py')
@@ -85,9 +272,43 @@ class Tests(unittest.TestCase):
         self.assertIn('SECOND',launched[0]);self.assertNotIn('PRIMARY',launched[0])
         self.assertEqual(launched[0][-1],'2');self.assertEqual(launched[0][2],'wayland')
         self.assertFalse(any('set-property' in c for c in commands))
-        self.assertFalse(any(c[0]=='pactl' for c in commands))
-        self.assertNotIn('PULSE_SINK',environments[0])
-        self.assertNotIn('PULSE_SOURCE',environments[0])
+        self.assertIn(['pactl','set-sink-volume','b','100%'],commands)
+        self.assertIn(['pactl','set-source-volume','b-input','100%'],commands)
+        self.assertEqual(environments[0]['PULSE_SINK'],'b')
+        self.assertEqual(environments[0]['PULSE_SOURCE'],'b-input')
+
+    def test_agent_workspaces_are_rejected(self):
+        c=config();c['players'][1]['workspace']=6
+        with patch.object(duo,'held_devices',side_effect=[['PRIMARY'],['SECOND']]):
+            with self.assertRaisesRegex(ValueError,'entre 1 e 5'):duo.validate(c,display=False,profiles=False)
+
+    def test_same_workspace_is_rejected(self):
+        c=config();c['players'][1]['workspace']=1
+        with patch.object(duo,'held_devices',side_effect=[['PRIMARY'],['SECOND']]):
+            with self.assertRaisesRegex(ValueError,'workspaces diferentes'):duo.validate(c,display=False,profiles=False)
+
+    def test_gamescope_uses_profile_rendering_options(self):
+        p=config()['players'][1]
+        p.update(resolution='1920x1080',scaler='fit',filter='fsr',gpu='10de:2705',mouse_native_dpi=800,mouse_dpi=1600)
+        cmd=duo.gamescope_command(p,{'width':2560,'height':1440},['/dev/input/event9'],'work')
+        self.assertEqual(cmd[cmd.index('-w')+1:cmd.index('-w')+3],['1920','-h'])
+        self.assertEqual(cmd[cmd.index('-h')+1],'1080')
+        self.assertEqual(cmd[cmd.index('-S')+1],'fit');self.assertEqual(cmd[cmd.index('-F')+1],'fsr')
+        self.assertEqual(cmd[cmd.index('-s')+1],'2.0000')
+        self.assertIn('10de:2705',cmd);self.assertEqual(cmd[-1],'work')
+
+    def test_invalid_mouse_dpi_is_rejected(self):
+        c=config();c['players'][1]['mouse_dpi']=0
+        with patch.object(duo,'held_devices',side_effect=[['PRIMARY'],['SECOND']]):
+            with self.assertRaisesRegex(ValueError,'DPI desejado'):duo.validate(c,display=False,profiles=False)
+
+    def test_generated_rules_reserve_selected_workspace(self):
+        c=duo.normalize_config(config());c['players'][1]['workspace_locked']=True
+        ms={p['monitor']:{'activeWorkspace':{'id':p['workspace']}} for p in c['players']}
+        with tempfile.TemporaryDirectory() as td,patch.object(duo,'RULE_FILE',Path(td)/'rules.lua'),patch.object(duo,'run',return_value=subprocess.CompletedProcess([],0,'','')):
+            duo.write_rules(c,ms);text=(Path(td)/'rules.lua').read_text()
+        self.assertIn('workspace_rule',text);self.assertIn('persistent=true',text)
+        self.assertIn('workspace="2"',text);self.assertIn('monitor="DP-2"',text)
 
     def test_audio_configuration_is_not_required_or_validated(self):
         for legacy in (False,True):
@@ -113,6 +334,8 @@ class Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             home=Path(td);hypr=home/'.config/hypr';hypr.mkdir(parents=True)
             (hypr/'hyprland.lua').write_text('-- existing\n')
+            binary=home/'.local/share/mise/installs/codex/latest/bin/codex'
+            binary.parent.mkdir(parents=True);binary.write_text('#!/bin/sh\nexit 0\n')
             installer.install(home,False)
             cfg=home/'.config/duoomarchy/config.json';cfg.write_text('{"custom": true}')
             installer.install(home,False)
@@ -120,6 +343,15 @@ class Tests(unittest.TestCase):
             self.assertEqual((hypr/'hyprland.lua').read_text().count('require("hypr.duoomarchy")'),1)
             self.assertTrue((home/'.local/bin/jogarduosim').is_symlink())
             self.assertEqual((home/'.local/share/duoomarchy/player2').stat().st_mode & 0o777,0o700)
+            self.assertTrue((home/'.local/share/duoomarchy/player2/.local/bin/duoomarchy-work-desktop').is_file())
+            private=home/'.local/share/duoomarchy/player2'
+            argv,_=tools.invocation('codex',['--version'],private,{})
+            self.assertIn('--dangerously-bypass-approvals-and-sandbox',argv)
+            self.assertEqual(argv[0],str(private/'.local/share/mise/installs/codex/latest/bin/codex'))
+            self.assertTrue((home/'.local/share/duoomarchy/player2/.config/duoomarchy-work/hyprland.lua').is_file())
+            self.assertTrue((home/'.local/share/duoomarchy/player2/AGENTS.md').is_file())
+            self.assertIn('/run/host-user',(home/'.local/share/duoomarchy/player2/.local/bin/agent-bench').read_text())
+            self.assertTrue((home/'.local/share/duoomarchy/configurator.py').is_file())
 
     def test_installer_refuses_existing_commands(self):
         with tempfile.TemporaryDirectory() as td:
@@ -133,8 +365,21 @@ class Tests(unittest.TestCase):
         self.assertIn('/private/player2',cmd)
         self.assertIn('/dev/input',cmd);self.assertEqual(cmd[cmd.index('/dev/input')-1],'--tmpfs')
         self.assertIn('/run/user/2345/pulse/native',cmd)
-        for key in ('PULSE_SINK','PULSE_SOURCE'):
-            self.assertEqual(cmd[cmd.index(key)-1],'--unsetenv')
+        self.assertNotIn('PULSE_SINK',cmd);self.assertNotIn('PULSE_SOURCE',cmd)
+        routed=session.command(Path('/private/player2'),Path('/run/user/2345'),{'PULSE_SINK':'headphones','PULSE_SOURCE':'microphone'})
+        for key,value in (('PULSE_SINK','headphones'),('PULSE_SOURCE','microphone')):
+            self.assertEqual(routed[routed.index(key)+1],value)
+
+    def test_work_desktop_receives_only_gamescope_wayland(self):
+        with tempfile.TemporaryDirectory() as td:
+            runtime=Path(td);(runtime/'gamescope-7').touch()
+            cmd=session.command(Path('/private/player2'),runtime,{'GAMESCOPE_WAYLAND_DISPLAY':'gamescope-7'},work=True)
+        self.assertEqual(cmd[cmd.index('WAYLAND_DISPLAY')+1],'gamescope-7')
+        self.assertNotIn('WLR_BACKENDS',cmd)
+        self.assertIn(str(session.HOME/'Compartilhado'),cmd)
+        self.assertNotIn('/tmp/.X11-unix',cmd)
+        self.assertIn('DISPLAY',cmd)
+        self.assertIn(str(session.HOME/'.local/share/mise'),cmd)
 
     def test_custom_steam_launch_options_are_preserved(self):
         import vdf

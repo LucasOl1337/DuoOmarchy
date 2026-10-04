@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1650" viewBox="0 0 1200 1650"><defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#160D31"/><stop offset="1" stop-color="#28184D"/></linearGradient></defs><rect width="1200" height="1650" fill="url(#bg)"/>
+<text x="60" y="88.44" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="42" font-weight="700">DuoOmarchy</text>
+<rect x="379" y="49" width="310" height="52" rx="26" fill="none" stroke="#72638C"/>
+<text x="400" y="86.5" fill="#EDE4FC" font-family="Noto Sans,sans-serif" font-size="25" font-weight="700">v0.2.0-alpha.1</text>
+<text x="933" y="82.58" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="19" font-weight="400">04 OUT 2026</text>
+<text x="60" y="150.57999999999998" fill="#DDD3EE" font-family="Noto Sans,sans-serif" font-size="19" font-weight="700">NOTAS DA ATUALIZAÇÃO</text>
+<text x="60" y="196.5" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="25" font-weight="400">Duas pessoas. Um PC. Cada uma com seu Omarchy.</text>
+<path d="M60,233 L1140,233" stroke="#5C477A" stroke-width="1"/>
+<path d="M62,270 L62,305" stroke="#FFC61A" stroke-width="5"/>
+<text x="79" y="291.86" fill="#FFC61A" font-family="Noto Sans,sans-serif" font-size="23" font-weight="700">NOVIDADES</text>
+<text x="1070" y="293.04" fill="#FFC61A" font-family="Noto Sans,sans-serif" font-size="22" font-weight="700">04</text>
+<text x="80" y="356.96" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="28" font-weight="700">Omarchy completo</text>
+<text x="1070.859375" y="352.3" fill="#FFC61A" font-family="Noto Sans,sans-serif" font-size="15" font-weight="700">DESKTOP</text>
+<text x="80" y="392.04" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="22" font-weight="400">Apps, menus e atalhos padrão, com workspaces 1–9 próprios.</text>
+<text x="80" y="434.96" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="28" font-weight="700">Arquivos e acessos comuns</text>
+<text x="1021.15625" y="430.3" fill="#FFC61A" font-family="Noto Sans,sans-serif" font-size="15" font-weight="700">ARQUIVOS / CLI</text>
+<text x="80" y="470.04" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="22" font-weight="400">Codex, Claude Code e Grok CLI usam os logins existentes.</text>
+<text x="80" y="512.96" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="28" font-weight="700">Mesmos harnesses e configs</text>
+<text x="1054.46875" y="508.3" fill="#FFC61A" font-family="Noto Sans,sans-serif" font-size="15" font-weight="700">TERMINAIS</text>
+<text x="80" y="548.04" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="22" font-weight="400">Binários compartilhados e execução com permissões liberadas.</text>
+<text x="80" y="590.96" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="28" font-weight="700">Maestri independente</text>
+<text x="1072.484375" y="586.3" fill="#FFC61A" font-family="Noto Sans,sans-serif" font-size="15" font-weight="700">MAESTRI</text>
+<text x="80" y="626.04" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="22" font-weight="400">Canvas, terminais, perfil e sockets próprios pra segunda estação.</text>
+<path d="M60,665 L1140,665" stroke="#4A375F" stroke-width="1"/>
+<path d="M62,697 L62,732" stroke="#2DD29A" stroke-width="5"/>
+<text x="79" y="718.86" fill="#2DD29A" font-family="Noto Sans,sans-serif" font-size="23" font-weight="700">MELHORIAS</text>
+<text x="1070" y="720.04" fill="#2DD29A" font-family="Noto Sans,sans-serif" font-size="22" font-weight="700">02</text>
+<text x="80" y="783.96" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="28" font-weight="700">Dois kits no configurador</text>
+<text x="1016.875" y="779.3" fill="#2DD29A" font-family="Noto Sans,sans-serif" font-size="15" font-weight="700">CONFIGURAÇÃO</text>
+<text x="80" y="819.04" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="22" font-weight="400">Monitor, entrada, áudio e renderização no mesmo painel.</text>
+<text x="80" y="861.96" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="28" font-weight="700">Preferências independentes</text>
+<text x="1029.265625" y="857.3" fill="#2DD29A" font-family="Noto Sans,sans-serif" font-size="15" font-weight="700">PREFERÊNCIAS</text>
+<text x="80" y="897.04" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="22" font-weight="400">Tema, wallpaper e plugins começam como no desktop principal.</text>
+<path d="M60,936 L1140,936" stroke="#4A375F" stroke-width="1"/>
+<path d="M62,968 L62,1003" stroke="#30BCEF" stroke-width="5"/>
+<text x="79" y="989.86" fill="#30BCEF" font-family="Noto Sans,sans-serif" font-size="23" font-weight="700">CORREÇÕES</text>
+<text x="1070" y="991.04" fill="#30BCEF" font-family="Noto Sans,sans-serif" font-size="22" font-weight="700">03</text>
+<text x="80" y="1054.96" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="28" font-weight="700">Rede na segunda estação</text>
+<text x="1100.359375" y="1050.3" fill="#30BCEF" font-family="Noto Sans,sans-serif" font-size="15" font-weight="700">REDE</text>
+<text x="80" y="1090.04" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="22" font-weight="400">DNS, HTTPS e o indicador continuam funcionando.</text>
+<text x="80" y="1132.96" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="28" font-weight="700">Tela inteira pra ela</text>
+<text x="1063.921875" y="1128.3" fill="#30BCEF" font-family="Noto Sans,sans-serif" font-size="15" font-weight="700">MONITOR</text>
+<text x="80" y="1168.04" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="22" font-weight="400">A barra externa fica coberta; aparecem só os workspaces dela.</text>
+<text x="80" y="1210.96" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="28" font-weight="700">Shell sem interromper o controle</text>
+<text x="1023.78125" y="1206.3" fill="#30BCEF" font-family="Noto Sans,sans-serif" font-size="15" font-weight="700">INICIALIZAÇÃO</text>
+<text x="80" y="1246.04" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="22" font-weight="400">A estação continua respondendo enquanto a interface carrega.</text>
+<path d="M60,1285 L1140,1285" stroke="#4A375F" stroke-width="1"/>
+<path d="M62,1317 L62,1352" stroke="#AA88FA" stroke-width="5"/>
+<text x="79" y="1338.86" fill="#AA88FA" font-family="Noto Sans,sans-serif" font-size="23" font-weight="700">SISTEMAS</text>
+<text x="1070" y="1340.04" fill="#AA88FA" font-family="Noto Sans,sans-serif" font-size="22" font-weight="700">01</text>
+<text x="80" y="1403.96" fill="#FFF9F1" font-family="Noto Sans,sans-serif" font-size="28" font-weight="700">Compositores no runtime privado</text>
+<text x="1067.59375" y="1399.3" fill="#AA88FA" font-family="Noto Sans,sans-serif" font-size="15" font-weight="700">RUNTIME</text>
+<text x="80" y="1439.04" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="22" font-weight="400">Gamescope e Aquamarine adaptados pro Hyprland aninhado.</text>
+<path d="M60,1478 L1140,1478" stroke="#4A375F" stroke-width="1"/>
+<text x="60" y="1530.4" fill="#BCB1D2" font-family="Noto Sans,sans-serif" font-size="20" font-weight="400">Notas completas, instalação e código-fonte</text>
+<text x="60" y="1565.4" fill="#F8F2FF" font-family="Noto Sans,sans-serif" font-size="20" font-weight="700">github.com/LucasOl1337/DuoOmarchy/releases</text>
+<path d="M35,28 L53,28" stroke="#73628A" stroke-width="1"/>
+<path d="M35,28 L35,46" stroke="#73628A" stroke-width="1"/>
+<path d="M35,1622 L53,1622" stroke="#73628A" stroke-width="1"/>
+<path d="M35,1622 L35,1604" stroke="#73628A" stroke-width="1"/>
+<path d="M1165,28 L1147,28" stroke="#73628A" stroke-width="1"/>
+<path d="M1165,28 L1165,46" stroke="#73628A" stroke-width="1"/>
+<path d="M1165,1622 L1147,1622" stroke="#73628A" stroke-width="1"/>
+<path d="M1165,1622 L1165,1604" stroke="#73628A" stroke-width="1"/>
+</svg>

@@ -11,3 +11,5 @@ DuoOmarchy integra software existente; não implementa um compositor, Vulkan ou 
 O código de integração original usa MIT. O patch do Gamescope mantém as condições e avisos do código upstream que modifica. Componentes instalados ou compilados conservam suas próprias licenças; o repositório não redistribui a Steam, Proton, jogos nem credenciais.
 
 As capturas documentam uma sessão real autorizada. Overwatch e seus elementos visuais pertencem à Blizzard Entertainment; as imagens não são relicenciadas pela licença MIT do código. Projeto independente, sem afiliação com Blizzard, Valve ou Omarchy.
+
+- [Aquamarine](https://github.com/hyprwm/aquamarine), versão 0.14.0: biblioteca privada com correção de inicialização do desktop aninhado. Licença BSD-3-Clause preservada em `licenses/Aquamarine-LICENSE`.

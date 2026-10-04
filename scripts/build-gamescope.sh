@@ -13,6 +13,8 @@ git -C "$source_dir" checkout --detach "$revision"
 git -C "$source_dir" submodule update --init --recursive
 git -C "$source_dir" apply --check "$root/patches/gamescope-selective-input.patch"
 git -C "$source_dir" apply "$root/patches/gamescope-selective-input.patch"
+git -C "$source_dir" apply --check "$root/patches/gamescope-work-station.patch"
+git -C "$source_dir" apply "$root/patches/gamescope-work-station.patch"
 meson setup "$source_dir/build" "$source_dir" --prefix="$prefix" \
   -Denable_openvr_support=false -Denable_gamescope_wsi_layer=false \
   -Denable_tests=false -Dbenchmark=disabled -Dbuildtype=release

@@ -1,0 +1,66 @@
+diff --git i/include/aquamarine/backend/Wayland.hpp w/include/aquamarine/backend/Wayland.hpp
+index c9ed136..de265cd 100644
+--- i/include/aquamarine/backend/Wayland.hpp
++++ w/include/aquamarine/backend/Wayland.hpp
+@@ -90,6 +90,9 @@ namespace Aquamarine {
+             Hyprutils::Memory::CSharedPointer<CCWlCallback>  frameCallback;
+         } waylandState;
+ 
++        bool announced = false;
++        Hyprutils::Math::Vector2D pendingSize;
++
+         friend class CWaylandBackend;
+         friend class CWaylandPointer;
+     };
+diff --git i/src/backend/Headless.cpp w/src/backend/Headless.cpp
+index b758028..c0987ff 100644
+--- i/src/backend/Headless.cpp
++++ w/src/backend/Headless.cpp
+@@ -160,6 +160,12 @@ std::vector<SDRMFormat> Aquamarine::CHeadlessBackend::getRenderFormats() {
+         return impl->getRenderableFormats();
+     }
+ 
++    // A nested desktop allocates on its Wayland parent GPU, including Nvidia.
++    for (const auto& impl : backend->getImplementations()) {
++        if (impl->type() == AQ_BACKEND_WAYLAND && !impl->getRenderFormats().empty())
++            return impl->getRenderFormats();
++    }
++
+     // formats probably supported by EGL
+     return {SDRMFormat{.drmFormat = DRM_FORMAT_XRGB8888, .modifiers = {DRM_FORMAT_INVALID}},
+             SDRMFormat{.drmFormat = DRM_FORMAT_XBGR8888, .modifiers = {DRM_FORMAT_INVALID}},
+diff --git i/src/backend/Wayland.cpp w/src/backend/Wayland.cpp
+index 893ce26..ae816d7 100644
+--- i/src/backend/Wayland.cpp
++++ w/src/backend/Wayland.cpp
+@@ -181,7 +181,15 @@ bool Aquamarine::CWaylandBackend::createOutput(const std::string& szName) {
+     o->self = o;
+     if (backend->ready)
+         o->swapchain = CSwapchain::create(backend->primaryAllocator, self.lock());
+-    idleCallbacks.emplace_back([this, o]() { backend->events.newOutput.emit(SP<IOutput>(o)); });
++    backend->addIdleEvent(makeShared<std::function<void()>>([this, o]() {
++        backend->events.newOutput.emit(SP<IOutput>(o));
++        o->announced = true;
++        if (o->pendingSize.x > 0 && o->pendingSize.y > 0) {
++            o->events.state.emit(IOutput::SStateEvent{.size = o->pendingSize});
++            o->scheduleFrame();
++        }
++    }));
++    wl_display_flush(waylandState.display);
+     return true;
+ }
+ 
+@@ -543,7 +551,12 @@ Aquamarine::CWaylandOutput::CWaylandOutput(const std::string& name_, Hyprutils::
+             w = 1280;
+             h = 720;
+         }
+-        events.state.emit(SStateEvent{.size = {w, h}});
++        pendingSize = {w, h};
++        // The parent's first configure can arrive before newOutput is announced.
++        // Replay it once the consumer has installed its output listeners.
++        if (!announced)
++            return;
++        events.state.emit(SStateEvent{.size = pendingSize});
+         // Kick off the first frame synchronously: the consumer expects events.frame in
+         // the same dispatch cycle as the toplevel configure. Deferring via scheduleFrame's
+         // idle races the first commit and can leave the output blank until the next event.
