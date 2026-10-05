@@ -2,6 +2,7 @@ import importlib.util
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -21,6 +22,52 @@ def config():
                        {'name':'P2','monitor':'DP-2','workspace':2,'keyboard':'p2kbd','mouse':'p2mouse','gamepad':'','sink':'b','source':'b-input','fps':120,'backend':'wayland'}]}
 
 class Tests(unittest.TestCase):
+    def test_session_uses_the_supervisors_profile_and_config(self):
+        for layout in ('jogarduo','duoomarchy'):
+            with self.subTest(layout=layout),tempfile.TemporaryDirectory() as td:
+                root=Path(td);data=root/layout;cfg=root/'config.json'
+                cfg.write_text(json.dumps({'players':[{}, {'gpu_name':'test GPU'}]}))
+                with patch.object(duo,'BASE',data),patch.object(duo,'CONFIG',cfg):
+                    env=duo.session_environment()
+                script='''
+import importlib.util, os, subprocess, sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location('session',sys.argv[1])
+session=importlib.util.module_from_spec(spec);spec.loader.exec_module(session)
+def launch(args):
+    profile=str(Path(os.environ['DUOOMARCHY_DATA'])/'player2')
+    assert profile in args, args
+    assert args[args.index('DXVK_FILTER_DEVICE_NAME')+1]=='test GPU', args
+    assert args[-1].endswith('/.local/bin/duoomarchy-session-control'), args
+    return subprocess.CompletedProcess(args,0)
+session.subprocess.run=launch
+sys.argv=['session.py','2']
+sys.exit(session.main())
+'''
+                result=subprocess.run([sys.executable,'-c',script,str(ROOT/'src/session.py')],env=env,capture_output=True,text=True)
+                self.assertEqual(result.returncode,0,result.stderr)
+                self.assertTrue((data/'player2/.duo-profile.lock').is_file())
+
+    def test_login_unit_receives_the_same_profile_paths(self):
+        def run(args,*_):
+            return subprocess.CompletedProcess(args,0,'inactive\n','')
+        with patch.object(duo,'active',return_value=False),patch.object(duo,'config',return_value=config()),patch.object(duo,'monitors',return_value=[{'name':'DP-2','width':1920,'height':1080}]),patch.object(duo,'write_rules'),patch.object(duo,'run',side_effect=run) as launch:
+            duo.login(2)
+        args=launch.call_args.args[0]
+        self.assertIn('DUOOMARCHY_DATA='+str(duo.BASE),args)
+        self.assertIn('DUOOMARCHY_CONFIG='+str(duo.CONFIG),args)
+
+    def test_legacy_update_installs_the_game_wrapper(self):
+        updater=module('updater',ROOT/'scripts/update-local.py')
+        with tempfile.TemporaryDirectory() as td:
+            home=Path(td);data=home/'.local/share/jogarduo';data.mkdir(parents=True)
+            (data/'jogarduo.py').write_text('previous install')
+            with patch.object(updater.subprocess,'run',return_value=subprocess.CompletedProcess([],3)),patch.object(updater.installer,'install_work_profile'):
+                updater.update(home)
+            wrapper=data/'player2/.local/bin/duoomarchy-overwatch'
+            self.assertEqual(wrapper.read_text(),(ROOT/'src/overwatch.py').read_text())
+            self.assertEqual(wrapper.stat().st_mode & 0o777,0o755)
+
     def test_maestri_profile_does_not_import_canvas_or_tunnel(self):
         with tempfile.TemporaryDirectory() as td:
             host=Path(td)/'host';private=Path(td)/'private'

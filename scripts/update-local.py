@@ -36,6 +36,9 @@ def update(home):
             source=source.replace("HOME / '.config/duoomarchy/config.json'","HOME / '.config/jogarduo/config.json'")
         (data/name).write_text(source);(data/name).chmod(0o755)
     shutil.copy2(ROOT/'VERSION',data/'VERSION')
+    wrapper=data/'player2/.local/bin/duoomarchy-overwatch'
+    wrapper.parent.mkdir(parents=True,exist_ok=True)
+    shutil.copy2(ROOT/'src/overwatch.py',wrapper);wrapper.chmod(0o755)
     installer.install_work_profile(data,home)
     print('Atualizado; perfis e configuração preservados. Backup:',backup)
 

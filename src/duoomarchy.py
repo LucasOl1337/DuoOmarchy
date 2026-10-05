@@ -39,6 +39,11 @@ def normalize_config(c):
     return c
 
 def config(): return normalize_config(json.loads(CONFIG.read_text()))
+def session_environment():
+    env=os.environ.copy()
+    env.update(DUOOMARCHY_DATA=str(BASE),DUOOMARCHY_CONFIG=str(CONFIG))
+    return env
+
 def active(): return run(['systemctl','--user','is-active',SERVICE],False).stdout.strip()=='active'
 def monitors(): return json.loads(run(['hyprctl','-j','monitors']).stdout)
 
@@ -265,7 +270,7 @@ def serve():
         state['primary_audio']=route_primary_audio(c['players'][0]);save_state(state)
         # The primary player stays in the native desktop. Never grab that kit.
         for n,p in [(2,c['players'][1])]:
-            m=ms[p['monitor']];env=os.environ.copy()
+            m=ms[p['monitor']];env=session_environment()
             apply_audio_profile(p)
             # Empty values deliberately inherit the desktop/Sonora choice.
             for key,field in (('PULSE_SINK','sink'),('PULSE_SOURCE','source')):
@@ -338,7 +343,7 @@ def login(n):
     write_rules(c,ms)
     m=ms[p['monitor']]
     app_id=f'{APP_PREFIX}.player{n}'
-    env=['SDL_VIDEODRIVER=x11',f'SDL_APP_ID={app_id}',f'SDL_VIDEO_X11_WMCLASS={app_id}',f'JOGARDUO_APP_ID={app_id}']
+    env=[f'DUOOMARCHY_DATA={BASE}',f'DUOOMARCHY_CONFIG={CONFIG}','SDL_VIDEODRIVER=x11',f'SDL_APP_ID={app_id}',f'SDL_VIDEO_X11_WMCLASS={app_id}',f'JOGARDUO_APP_ID={app_id}']
     if p.get('sink'):env.append('PULSE_SINK='+p['sink'])
     if p.get('source'):env.append('PULSE_SOURCE='+p['source'])
     cmd=['systemd-run','--user','--unit='+unit,'--collect','--service-type=exec','-p','KillMode=control-group','env']+env+[str(BIN),'--backend',p.get('backend','wayland'),'-f','-W',str(m['width']),'-H',str(m['height']),'-w','1920','-h','1080','-r','60','--',str(BASE/'session.py'),str(n)]
